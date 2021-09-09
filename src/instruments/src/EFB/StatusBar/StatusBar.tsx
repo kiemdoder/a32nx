@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { IconAccessPoint, IconBattery4, IconPower } from '@tabler/icons';
+import { IconAccessPoint, IconBattery1, IconBattery2, IconBattery3, IconBattery4, IconBatteryCharging, IconPower } from '@tabler/icons';
 import { connect } from 'react-redux';
+import { useSimVar } from '../../Common/simVars';
 import { efbClearState } from '../Store/action-creator/efb';
+import { changeEfbBatteryLevel } from '../Store/action-creator/efb-battery';
 
 import { PowerContext, ContentState } from '../index';
+import { EFB_BATTERY_REDUCER } from '../Store';
 
 type StatusBarProps = {
     initTime: Date,
     updateTimeSinceStart: (newTimeSinceStart: string) => void,
     updateCurrentTime: (newCurrentTime: Date) => void,
-    efbClearState: () => {}
+    batteryLevel: number,
+    efbClearState: () => {},
+    changeEfbBatteryLevel: (level: number) => {}
 }
 
 export function formatTime(numbers: number[]) {
@@ -22,7 +27,7 @@ export function formatTime(numbers: number[]) {
 }
 
 export function dateFormat(date: number): string {
-    let numberWithSuffix;
+    let numberWithSuffix: string;
     const dateRemOf10 = date % 10;
     const dateRemOf100 = date % 100;
 
@@ -39,8 +44,67 @@ export function dateFormat(date: number): string {
     return numberWithSuffix;
 }
 
+const Battery = ({ charging, level }: {charging: boolean; level: number}) => {
+    if (charging) {
+        return (
+            <IconBatteryCharging
+                className="ml-2"
+                size={30}
+                stroke={1.5}
+                strokeLinejoin="miter"
+            />
+        );
+    }
+
+    if (level === 100) {
+        return (
+            <IconBattery4
+                className="ml-2"
+                size={30}
+                stroke={1.5}
+                strokeLinejoin="miter"
+            />
+        );
+    }
+
+    if (level >= 75 && level < 100) {
+        return (
+            <IconBattery3
+                className="ml-2"
+                size={30}
+                stroke={1.5}
+                strokeLinejoin="miter"
+            />
+        );
+    }
+
+    if (level >= 50 && level < 75) {
+        return (
+            <IconBattery2
+                className="ml-2"
+                size={30}
+                stroke={1.5}
+                strokeLinejoin="miter"
+            />
+        );
+    }
+
+    return (
+        <IconBattery1
+            className="ml-2"
+            size={30}
+            stroke={1.5}
+            strokeLinejoin="miter"
+        />
+    );
+};
+
 const StatusBar = (props: StatusBarProps) => {
     const [currentTime, setCurrentTime] = useState(props.initTime);
+
+    const [chargeTimerHandle, setChargeTimerHandle] = useState(-1);
+    const [dischargeTimerHandle, setDischargeTimerHandle] = useState(-1);
+    const [dc2BusPowered] = useSimVar('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', 'Bool', 1000);
 
     const Power = useContext(PowerContext);
 
@@ -54,7 +118,32 @@ const StatusBar = (props: StatusBarProps) => {
     }
 
     useEffect(() => {
-        setInterval(() => {
+        console.log({ dc2BusPowered });
+        if (dc2BusPowered) {
+            clearInterval(dischargeTimerHandle);
+            setDischargeTimerHandle(-1);
+            if (chargeTimerHandle === -1) {
+                console.log('charge battery');
+                setChargeTimerHandle(setInterval(() => props.changeEfbBatteryLevel(0.05), 1000));
+            }
+        } else {
+            clearInterval(chargeTimerHandle);
+            setChargeTimerHandle(-1);
+            if (dischargeTimerHandle === -1) {
+                console.log('discharge battery');
+                setDischargeTimerHandle(setInterval(() => props.changeEfbBatteryLevel(-0.01), 1000));
+            }
+        }
+
+        return () => {
+            clearInterval(chargeTimerHandle);
+            clearInterval(dischargeTimerHandle);
+        };
+    }, [dc2BusPowered, chargeTimerHandle, dischargeTimerHandle]);
+
+    useEffect(() => {
+        // console.log('start timer');
+        const timerHandle = setInterval(() => {
             const date = new Date();
             const timeSinceStart = calculateTimeSinceStart(date);
             props.updateCurrentTime(date);
@@ -62,8 +151,11 @@ const StatusBar = (props: StatusBarProps) => {
             setCurrentTime(date);
         }, 1000);
 
-        return () => clearInterval();
-    }, []);
+        return () => {
+            // console.log('clear timer');
+            clearInterval(timerHandle);
+        };
+    });
 
     const { efbClearState } = props;
 
@@ -75,15 +167,11 @@ const StatusBar = (props: StatusBarProps) => {
             </div>
             <div>{`${formatTime(([currentTime.getUTCHours(), currentTime.getUTCMinutes()]))}z`}</div>
             <div className="flex items-center">
-                100%
+                {props.batteryLevel.toFixed(3)}
+                %
 
                 {/* TODO find a way to use `setSimVar` here */}
-                <IconBattery4
-                    className="ml-2"
-                    size={30}
-                    stroke={1.5}
-                    strokeLinejoin="miter"
-                />
+                <Battery charging={dc2BusPowered} level={props.batteryLevel} />
                 <IconPower
                     onClick={() => {
                         efbClearState();
@@ -100,6 +188,6 @@ const StatusBar = (props: StatusBarProps) => {
 };
 
 export default connect(
-    () => {},
-    { efbClearState },
+    ({ [EFB_BATTERY_REDUCER]: { batteryLevel } }) => ({ batteryLevel }),
+    { efbClearState, changeEfbBatteryLevel },
 )(StatusBar);

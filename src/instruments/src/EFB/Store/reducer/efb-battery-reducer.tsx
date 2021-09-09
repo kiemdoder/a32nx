@@ -1,16 +1,16 @@
 import typeToReducer from 'type-to-reducer';
-import { EFB_BATTERY_REDUCER } from '..';
+import { EFB_CHANGE_BATTERY_LEVEL } from '../actions';
 
 interface EfbBatteryState {
-    level: number;
+    batteryLevel: number;
 }
 
-const initialState: EfbBatteryState = { level: 55 };
+const initialState: EfbBatteryState = { batteryLevel: 55 };
 
 export const efbBatteryReducer = typeToReducer({
-    [EFB_BATTERY_REDUCER]: (state, { level }) => ({
+    [EFB_CHANGE_BATTERY_LEVEL]: (state, { levelDelta }) => ({
         ...state,
-        level,
+        batteryLevel: state.batteryLevel < 100 && state.batteryLevel > 10 ? Math.min(state.batteryLevel + levelDelta, 100) : state.batteryLevel,
     }),
 },
 initialState);

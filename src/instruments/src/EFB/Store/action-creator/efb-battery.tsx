@@ -1,6 +1,6 @@
-import { EFB_SET_BATTERY_LEVEL } from '../actions';
+import { EFB_CHANGE_BATTERY_LEVEL } from '../actions';
 
-export const setEfbBatteryLevel = (level: number) => ({
-    type: EFB_SET_BATTERY_LEVEL,
-    level,
+export const changeEfbBatteryLevel = (levelDelta: number) => ({
+    type: EFB_CHANGE_BATTERY_LEVEL,
+    levelDelta,
 });
