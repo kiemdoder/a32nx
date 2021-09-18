@@ -102,8 +102,8 @@ const Battery = ({ charging, level }: {charging: boolean; level: number}) => {
 const StatusBar = (props: StatusBarProps) => {
     const [currentTime, setCurrentTime] = useState(props.initTime);
 
+    const [charging, setCharging] = useState(-1);
     const [chargeTimerHandle, setChargeTimerHandle] = useState(-1);
-    const [dischargeTimerHandle, setDischargeTimerHandle] = useState(-1);
     const [dc2BusPowered] = useSimVar('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', 'Bool', 1000);
 
     const Power = useContext(PowerContext);
@@ -119,27 +119,18 @@ const StatusBar = (props: StatusBarProps) => {
 
     useEffect(() => {
         console.log({ dc2BusPowered });
-        if (dc2BusPowered) {
-            clearInterval(dischargeTimerHandle);
-            setDischargeTimerHandle(-1);
-            if (chargeTimerHandle === -1) {
-                console.log('charge battery');
-                setChargeTimerHandle(setInterval(() => props.changeEfbBatteryLevel(0.05), 1000));
-            }
-        } else {
+        if (dc2BusPowered !== charging) {
             clearInterval(chargeTimerHandle);
-            setChargeTimerHandle(-1);
-            if (dischargeTimerHandle === -1) {
-                console.log('discharge battery');
-                setDischargeTimerHandle(setInterval(() => props.changeEfbBatteryLevel(-0.01), 1000));
-            }
+            const charge = dc2BusPowered;
+            setCharging(charge);
+            console.log('charging battery', charge);
+            setChargeTimerHandle(setInterval(() => props.changeEfbBatteryLevel(charge ? 0.05 : -0.01), 1000));
         }
 
         return () => {
             clearInterval(chargeTimerHandle);
-            clearInterval(dischargeTimerHandle);
         };
-    }, [dc2BusPowered, chargeTimerHandle, dischargeTimerHandle]);
+    }, [dc2BusPowered, chargeTimerHandle]);
 
     useEffect(() => {
         // console.log('start timer');
