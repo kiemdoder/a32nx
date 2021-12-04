@@ -99,12 +99,39 @@ const Battery = ({ charging, level }: {charging: boolean; level: number}) => {
     );
 };
 
+const BatteryLowWarning = (props: {onClose: () => void}) => (
+    <div
+        className="w-screen h-screen bg-black bg-opacity-90 absolute top-0 left-0 flex justify-center items-center"
+        onClick={props.onClose}
+    >
+        <div
+            className=" flex flex-col items-center w-1/3 h-1/3 bg-navy text-white object-center rounded-md overflow-hidden"
+        >
+            <div className="w-full p-2 border-b">
+                <span>Connect charger cable</span>
+            </div>
+            <div className="flex-1">
+                <span className="w-full p-2">Battery low. Less than 10% charge remaining</span>
+                <IconBattery1 />
+            </div>
+            <div className="w-full flex justify-end p-4 bg-navy-500">
+                <div className="flex justify-center items-center w-16 h-8 bg-navy-lighter rounded-md">
+                    <span>Ok</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+);
+
 const StatusBar = (props: StatusBarProps) => {
     const [currentTime, setCurrentTime] = useState(props.initTime);
+    const [showBatteryWarning, setShowBatteryWarning] = useState(false); // TODO: remove after testing
 
     const [charging, setCharging] = useState(-1);
     const [chargeTimerHandle, setChargeTimerHandle] = useState(-1);
     const [dc2BusPowered] = useSimVar('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', 'Bool', 1000);
+    const [simRate] = useSimVar('SIMULATION RATE', 'number', 4000);
 
     const Power = useContext(PowerContext);
 
@@ -118,7 +145,7 @@ const StatusBar = (props: StatusBarProps) => {
     }
 
     useEffect(() => {
-        console.log({ dc2BusPowered });
+        console.log({ dc2BusPowered, simRate, showBatteryWarning });
         if (dc2BusPowered !== charging) {
             clearInterval(chargeTimerHandle);
             const charge = dc2BusPowered;
@@ -156,7 +183,8 @@ const StatusBar = (props: StatusBarProps) => {
                 <IconAccessPoint className="mr-2 animate-pulse" size={30} stroke={1.5} strokeLinejoin="miter" />
                 flyPad
             </div>
-            <div>{`${formatTime(([currentTime.getUTCHours(), currentTime.getUTCMinutes()]))}z`}</div>
+            {/* TODO: remove onClick */}
+            <div onClick={() => setShowBatteryWarning(true)}>{`${formatTime(([currentTime.getUTCHours(), currentTime.getUTCMinutes()]))}z`}</div>
             <div className="flex items-center">
                 {props.batteryLevel.toFixed(3)}
                 %
@@ -174,6 +202,8 @@ const StatusBar = (props: StatusBarProps) => {
                     strokeLinejoin="miter"
                 />
             </div>
+
+            {showBatteryWarning && (<BatteryLowWarning onClose={() => setShowBatteryWarning(false)} />)}
         </div>
     );
 };
